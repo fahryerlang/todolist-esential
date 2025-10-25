@@ -1,78 +1,200 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { useState, useEffect } from 'react';
+import Head from 'next/head';
+import AddTodoForm from '@/components/AddTodoForm';
+import TodoItem from '@/components/TodoItem';
+import { Todo } from '@/types/todo';
 
 export default function Home() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+
+  // Fetch todos
+  const fetchTodos = async () => {
+    try {
+      const response = await fetch('/api/todos');
+      if (response.ok) {
+        const data = await response.json();
+        setTodos(data);
+      }
+    } catch (error) {
+      console.error('Error fetching todos:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  // Add todo
+  const handleAddTodo = async (title: string, description: string) => {
+    const response = await fetch('/api/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description }),
+    });
+
+    if (response.ok) {
+      const newTodo = await response.json();
+      setTodos([newTodo, ...todos]);
+    }
+  };
+
+  // Toggle todo completion
+  const handleToggleTodo = async (id: number, completed: boolean) => {
+    const response = await fetch(`/api/todos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed }),
+    });
+
+    if (response.ok) {
+      const updatedTodo = await response.json();
+      setTodos(todos.map(todo => todo.id === id ? updatedTodo : todo));
+    }
+  };
+
+  // Delete todo
+  const handleDeleteTodo = async (id: number) => {
+    const response = await fetch(`/api/todos/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      setTodos(todos.filter(todo => todo.id !== id));
+    }
+  };
+
+  // Update todo
+  const handleUpdateTodo = async (id: number, title: string, description: string) => {
+    const response = await fetch(`/api/todos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description }),
+    });
+
+    if (response.ok) {
+      const updatedTodo = await response.json();
+      setTodos(todos.map(todo => todo.id === id ? updatedTodo : todo));
+    }
+  };
+
+  // Filter todos
+  const filteredTodos = todos.filter(todo => {
+    if (filter === 'active') return !todo.completed;
+    if (filter === 'completed') return todo.completed;
+    return true;
+  });
+
+  const activeCount = todos.filter(t => !t.completed).length;
+  const completedCount = todos.filter(t => t.completed).length;
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black`}
-    >
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the index.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <>
+      <Head>
+        <title>Todo List - Stay Organized</title>
+        <meta name="description" content="A beautiful and simple todo list application" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="container mx-auto px-4 py-8 max-w-3xl">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Todo List
+            </h1>
+            <p className="text-gray-600">Stay organized and productive</p>
+          </div>
+
+          {/* Add Todo Form */}
+          <AddTodoForm onAdd={handleAddTodo} />
+
+          {/* Stats */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 bg-white rounded-xl shadow-md p-4 text-center border border-gray-100">
+              <div className="text-2xl font-bold text-blue-600">{activeCount}</div>
+              <div className="text-sm text-gray-600">Active</div>
+            </div>
+            <div className="flex-1 bg-white rounded-xl shadow-md p-4 text-center border border-gray-100">
+              <div className="text-2xl font-bold text-green-600">{completedCount}</div>
+              <div className="text-sm text-gray-600">Completed</div>
+            </div>
+            <div className="flex-1 bg-white rounded-xl shadow-md p-4 text-center border border-gray-100">
+              <div className="text-2xl font-bold text-purple-600">{todos.length}</div>
+              <div className="text-sm text-gray-600">Total</div>
+            </div>
+          </div>
+
+          {/* Filter Buttons */}
+          <div className="flex gap-2 mb-6 bg-white rounded-xl shadow-md p-2 border border-gray-100">
+            <button
+              onClick={() => setFilter('all')}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                filter === 'all'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              All
+            </button>
+            <button
+              onClick={() => setFilter('active')}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                filter === 'active'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              Active
+            </button>
+            <button
+              onClick={() => setFilter('completed')}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                filter === 'completed'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Completed
+            </button>
+          </div>
+
+          {/* Todo List */}
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="mt-4 text-gray-600">Loading todos...</p>
+            </div>
+          ) : filteredTodos.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl shadow-md border border-gray-100">
+              <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-gray-500 text-lg">
+                {filter === 'all' ? 'No todos yet. Add one to get started!' :
+                 filter === 'active' ? 'No active todos!' :
+                 'No completed todos yet!'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredTodos.map(todo => (
+                <TodoItem
+                  key={todo.id}
+                  todo={todo}
+                  onToggle={handleToggleTodo}
+                  onDelete={handleDeleteTodo}
+                  onUpdate={handleUpdateTodo}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs/pages/getting-started?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
