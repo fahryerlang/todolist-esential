@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Todo } from '@/types/todo';
+import ConfirmModal from './ConfirmModal';
+import SuccessNotification from './SuccessNotification';
 
 interface TodoItemProps {
   todo: Todo;
@@ -13,6 +15,8 @@ export default function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoIte
   const [editTitle, setEditTitle] = useState(todo.title);
   const [editDescription, setEditDescription] = useState(todo.description || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessNotif, setShowSuccessNotif] = useState(false);
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -23,14 +27,18 @@ export default function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoIte
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this todo?')) {
-      setIsLoading(true);
-      try {
-        await onDelete(todo.id);
-      } finally {
-        setIsLoading(false);
-      }
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setShowDeleteModal(false);
+    setIsLoading(true);
+    try {
+      await onDelete(todo.id);
+      setShowSuccessNotif(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -148,7 +156,7 @@ export default function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoIte
               </svg>
             </button>
             <button
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               disabled={isLoading}
               className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete"
@@ -160,6 +168,25 @@ export default function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoIte
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="Hapus Todo?"
+        message="Apakah Anda yakin ingin menghapus todo ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+        type="danger"
+      />
+
+      <SuccessNotification
+        isOpen={showSuccessNotif}
+        title="Berhasil!"
+        message="Todo berhasil dihapus."
+        onClose={() => setShowSuccessNotif(false)}
+      />
     </div>
   );
 }
